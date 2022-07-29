@@ -23,6 +23,12 @@ ofxWebRTC_VAD::ofxWebRTC_VAD():ofxSoundObject(OFX_SOUND_OBJECT_PROCESSOR){
     bResetVads = false;
     sampleRate = 16000;
     aggressiveness = Vad::kVadNormal;
+ 
+    listeners.push(vadAggressiveness.newListener([&](int& a){
+        setAggressiveness((Vad::Aggressiveness)a);
+    }));
+ 
+    setAggressiveness(Vad::kVadVeryAggressive);
     
 }
 ofxWebRTC_VAD::~ofxWebRTC_VAD(){
@@ -55,6 +61,7 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     
     if(vads.size() != in.getNumChannels()){
         vads.clear();
+        
         for(size_t i = 0; i < in.getNumChannels(); i++){
             vads.emplace_back(CreateVad(getAggressiveness()));
         }
@@ -64,7 +71,11 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     vector<int16_t> intInput;
     bool bChangeSampleRate = sampleRate != in.getSampleRate();
     ofSoundBuffer inChannel;
-    Score currentScore = score.load();
+    
+    if(score.channelsScore.size() != in.getNumChannels()){
+        score.channelsScore.resize(in.getNumChannels());
+    }
+    
     int chunkSize = sampleRate/ 1000 * 10; // the vad algorith requires to process chunks of either 10, 20 or 30 milliseconds.
     /// TODO: Automate the finding the correct value of chunkSize, because it is invalid for some configurations.
     for(size_t i =0; i < in.getNumChannels(); i++){
@@ -85,22 +96,40 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
             for(size_t startSample = 0; startSample + chunkSize < intInput.size(); startSample += chunkSize) {
                 auto a = vads[i] ->VoiceActivity(&intInput[startSample], chunkSize, sampleRate);
                 if(a != Vad::kError){
-                    currentScore.activity += int(a);
+                    score.channelsScore[i].activity += int(a);
                 }else{
-                    currentScore.error ++;
+                    score.channelsScore[i].error ++;
                 }
             }
+            
+            score.channelsScore[i].bActive |= (score.channelsScore[i].activity > 0);
+            
+            
+//            if(score.channelsScore[i].activity == 0){
+//                score.channelsScore[i].activeCount = 0;
+//                score.channelsScore[i].inactiveCount ++;
+//            }else if(score.channelsScore[i].activity > 0 ){
+//                score.channelsScore[i].activeCount ++;
+//                score.channelsScore[i].inactiveCount = 0;
+//            }
+//
+//            if(score.channelsScore[i].activeCount > minGap.get()){
+//                score.channelsScore[i].bActive = true;
+//            }else if(score.channelsScore[i].inactiveCount < maxGap.get()){
+//                score.channelsScore[i].bActive = false;
+//            }
         }
     }
-    currentScore.numFrames ++;
-    score = currentScore;
+    score.numFrames ++;
+    audioOutCount ++;
     
 }
 
 
 ofxWebRTC_VAD::Score ofxWebRTC_VAD::getActivityScore(){
-    ofxWebRTC_VAD::Score s = score.load();
-    score = ofxWebRTC_VAD::Score();
+    std::scoped_lock<ofMutex> lck(scoreMutex);
+    auto s = score;
+    score.reset();
     return s;
 }
 

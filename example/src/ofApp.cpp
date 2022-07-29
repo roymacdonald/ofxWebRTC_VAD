@@ -138,15 +138,19 @@ void ofApp::update(){
 void ofApp::drawVadScore(){
     scores.push_back(vad.getActivityScore());
     float frameDrawSize = ofMap(bufferSize, 0, player.getNumFrames(), 0, fullFileWaveform.width);
-    float x = fullFileWaveform.getMinX();
     float y0 = fullFileWaveform.getMinY();
+
     ofPushStyle();
     ofSetColor(ofColor::magenta);
-    
+    float x = fullFileWaveform.getMinX();
+
     for(auto& s: scores){
         float w = s.numFrames*frameDrawSize;
-        if(s.activity>0){
-            ofDrawRectangle(x, y0, w, fullFileWaveform.height);
+        for(size_t i = 0; i < s.channelsScore.size(); i++){
+            float h = fullFileWaveform.height / s.channelsScore.size();
+            if(s.channelsScore[i].activity > 0){
+                ofDrawRectangle(x, y0 + (h*i), w, h);
+            }
         }
         x+= w;
     }

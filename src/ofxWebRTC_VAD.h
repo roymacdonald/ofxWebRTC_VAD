@@ -42,12 +42,40 @@ public:
     void process(ofSoundBuffer &in, ofSoundBuffer &out) ;
     
     struct Score{
-        size_t activity =0;
+        struct ChannelScore{
+            size_t activity =0;
+            size_t error =0;
+            size_t sinceChangeCount = 0;
+//            size_t inactiveCount = 0;
+            bool bActive = false;
+            
+            void reset(){
+                activity =0;
+                error =0;
+                bActive = false;
+            }
+            friend std::ostream& operator << (std::ostream& os, const ChannelScore& s) {
+                os << "Activity: " << s.activity  << " Errors: " << s.error << " Since Change Count: " << s.sinceChangeCount;
+                return os;
+            }
+        };
+        
+        vector<ChannelScore> channelsScore;
         size_t numFrames = 0;
-        size_t error =0;
+        
+        
+        void reset(){
+            numFrames = 0;
+            for(auto& c: channelsScore){
+                c.reset();
+            }
+        }
         
         friend std::ostream& operator << (std::ostream& os, const Score& s) {
-            os << "Activity: " << s.activity << " Num Frames: " << s.numFrames << " Errors: " << s.error;
+//            os << "Num Frames: " << s.numFrames<< "\n";
+//            for(auto& c: s.channelsScore){
+//                os << "   " << c << "\n";
+//            }
             return os;
         }
         
@@ -55,14 +83,26 @@ public:
     
     Score getActivityScore();
     
-    void setAggressiveness(Vad::Aggressiveness _aggressiveness);
-    Vad::Aggressiveness getAggressiveness();
+    
+    ofParameter<int> vadAggressiveness = {"VAD Aggressiveness", 3, 0, 3};
+    ofParameter<int> attack = {"Attack", 2, 0, 20};
+    ofParameter<int> release = {"Release", 1, 0, 20};
+    
+    ofParameterGroup parameters = {"ofxWebRTC_VAD", vadAggressiveness, attack, release};
     
 private:
-    std::atomic<Score> score;
+    
+    void setAggressiveness(Vad::Aggressiveness _aggressiveness);
+    Vad::Aggressiveness getAggressiveness();
+
+    
+    Score score;
+    ofMutex scoreMutex;
 
     std::atomic<int> sampleRate;
 
+    ofEventListeners listeners;
+    
     
 //    kVadNormal = 0,
 //    kVadLowBitrate = 1,
@@ -74,5 +114,7 @@ private:
     std::atomic<bool>  bResetVads;
     ofxSamplerate srConverter;
 
+    
+    size_t audioOutCount = 0;
     
 };

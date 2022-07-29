@@ -6,9 +6,6 @@
 
 #include "ofxSoundPlayerObject.h"
 #include "ofxGui.h"
-
-#include "SineWaveGenerator.h"
-
 #include "ofxWebRTC_VAD.h"
 
 class ofApp : public ofBaseApp{
@@ -31,7 +28,7 @@ public:
     ofSoundStream stream;
     ofxSoundOutput output;
     // these are all subclasses of ofSoundObject
-    ofxSoundPlayerObject player;
+//    ofxSoundPlayerObject player;
     waveformDraw wave;
 
     ofxPanel gui;
@@ -42,17 +39,17 @@ public:
     
 //    vector<ofMesh> waveforms;
     
-    waveformDraw fullFileWaveform;
+    vector<waveformDraw> fullFileWaveform;
     
-    ofEventListener playerEndListener;
-    void playerEnded(size_t & id);
-    
+        
     
     ofxWebRTC_VAD vad;
+    
     ofParameter<int> vadAggressiveness = {"VAD Aggressiveness", 0, 0, 3};
     ofEventListeners listeners;
     
     vector<ofxWebRTC_VAD::Score> scores;
+    
     int bufferSize;
     
     void drawVadScore();
