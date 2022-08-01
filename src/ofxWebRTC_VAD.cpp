@@ -5,8 +5,8 @@ template<typename T>
 void downSample(const ofSoundBuffer &in, vector<T> & out){
     out.resize(in.size());
     
-    auto mn = std::numeric_limits<int16_t>::min();
-    auto mx = std::numeric_limits<int16_t>::max();
+    auto mn = std::numeric_limits<T>::min();
+    auto mx = std::numeric_limits<T>::max();
     
     for(size_t i = 0; i < in.size(); i++){
         if(in[i] > 0){
@@ -61,12 +61,14 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     
     if(vads.size() != in.getNumChannels()){
         vads.clear();
-        
         for(size_t i = 0; i < in.getNumChannels(); i++){
             vads.emplace_back(CreateVad(getAggressiveness()));
         }
     }
     
+    if(states.size() != in.getNumChannels()){
+        states.resize(in.getNumChannels());
+    }
     
     vector<int16_t> intInput;
     bool bChangeSampleRate = sampleRate != in.getSampleRate();
@@ -101,24 +103,9 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
                     score.channelsScore[i].error ++;
                 }
             }
-            
             score.channelsScore[i].bActive |= (score.channelsScore[i].activity > 0);
-            
-            
-//            if(score.channelsScore[i].activity == 0){
-//                score.channelsScore[i].activeCount = 0;
-//                score.channelsScore[i].inactiveCount ++;
-//            }else if(score.channelsScore[i].activity > 0 ){
-//                score.channelsScore[i].activeCount ++;
-//                score.channelsScore[i].inactiveCount = 0;
-//            }
-//
-//            if(score.channelsScore[i].activeCount > minGap.get()){
-//                score.channelsScore[i].bActive = true;
-//            }else if(score.channelsScore[i].inactiveCount < maxGap.get()){
-//                score.channelsScore[i].bActive = false;
-//            }
         }
+        states[i].add(score.channelsScore[i].bActive, 1, attack.get(), release.get());
     }
     score.numFrames ++;
     audioOutCount ++;

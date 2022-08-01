@@ -9,6 +9,39 @@
 
 
 
+class ofxVadChannelScoreState{
+public:
+
+    size_t numFramesSinceChange;
+//    size_t numFramesSinceLastActive;
+    bool bActive = false;
+    bool bActiveFiltered = false;
+    void add(bool active, size_t numFrames, int attack, int release){
+        
+        if(active == bActive){
+            numFramesSinceChange += numFrames;
+        }else{
+            numFramesSinceChange=numFrames;
+            bActive = active;
+        }
+        if(numFramesSinceChange > (active?attack:release)){
+            
+//            if(bActiveFiltered != active){
+//                if(!active){
+//                    numFramesSinceLastActive = 0;
+//                }else{
+//                    numFramesSinceLastActive
+//                }
+//
+//            }
+            
+            bActiveFiltered = active;
+        }
+        
+
+        
+    }
+};
 
 
 class ofxWebRTC_VAD: public ofxSoundObject {
@@ -64,6 +97,7 @@ public:
         size_t numFrames = 0;
         
         
+        
         void reset(){
             numFrames = 0;
             for(auto& c: channelsScore){
@@ -81,14 +115,18 @@ public:
         
     };
     
+    
+    vector<ofxVadChannelScoreState>states;
+    
     Score getActivityScore();
     
     
     ofParameter<int> vadAggressiveness = {"VAD Aggressiveness", 3, 0, 3};
     ofParameter<int> attack = {"Attack", 2, 0, 20};
     ofParameter<int> release = {"Release", 1, 0, 20};
+    ofParameter<int> preRec = {"Pre Recording", 2, 0, 40};
     
-    ofParameterGroup parameters = {"ofxWebRTC_VAD", vadAggressiveness, attack, release};
+    ofParameterGroup parameters = {"ofxWebRTC_VAD", vadAggressiveness, attack, release, preRec};
     
 private:
     
