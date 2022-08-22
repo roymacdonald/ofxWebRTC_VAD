@@ -30,6 +30,8 @@ ofxWebRTC_VAD::ofxWebRTC_VAD():ofxSoundObject(OFX_SOUND_OBJECT_PROCESSOR){
  
     setAggressiveness(Vad::kVadVeryAggressive);
     
+    recorder = make_shared<ofxVadRecorder>(this);
+    
 }
 ofxWebRTC_VAD::~ofxWebRTC_VAD(){
     
@@ -70,7 +72,6 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     }
     
     out = in;
-    circularBuffer.push(in);
     if(bResetVads.load()){
         bResetVads = false;
         vads.clear();
@@ -90,6 +91,9 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     if(score.channelsScore.size() != in.getNumChannels()){
         score.channelsScore.resize(in.getNumChannels());
     }
+    
+    
+    recorder->process(in);
     
     int chunkSize = sampleRate/ 1000 * 10; // the vad algorith requires to process chunks of either 10, 20 or 30 milliseconds.
     /// TODO: Automate the finding the correct value of chunkSize, because it is invalid for some configurations.
@@ -117,129 +121,16 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
 //                    score.channelsScore[i].error ++;
                 }
             }
-            updateRecording(i, score.channelsScore[i].updateState(activity, attack.get(), release.get()));
-            
-//            score.channelsScore[i].bActive |= (score.channelsScore[i].activity > 0);
+            auto state = score.channelsScore[i].updateState(activity, attack.get(), release.get());
+            recorder->updateRecording(i, state);
+
         }
-//        states[i].add(score.channelsScore[i].bActive, 1, attack.get(), release.get());
     }
     score.numFrames ++;
-    
-    
 }
 
-void copyFromCircularBuffer(ofxCircularSoundBuffer& src, shared_ptr<ofSoundBuffer>& dest, size_t samplesToCopy, size_t channel, size_t startFrame, bool bAppend){
-    if(!dest){
-        ofLogError("ofxWebRTC_VAD::copyFromCircularBuffer") << "Destination buffer is null";
-        return;
-    }
-    size_t startDestIndex = 0;
-    if(bAppend){
-        startDestIndex = dest->size();
-        dest->resize(dest->getNumFrames() + samplesToCopy);
-    }
-    
-    auto nc = src.getNumChannels();
-    size_t j = startDestIndex;
-    for(size_t i = startFrame + channel; i < src.size() && j < dest->size(); i+= nc){
-        dest->getBuffer()[j] = src [i];
-        j++;
-    }
-    if(j < dest->size()){
-        for(size_t i = channel; i < src.size() && j < dest->size(); i+= nc){
-            dest->getBuffer()[j] = src [i];
-            j++;
-        }
-    }
-}
-
-void ofxWebRTC_VAD::updateRecording(size_t channelIndex, ChannelState state){
-    
-    if(currentRecordings.size() != vads.size()){
-        currentRecordings.resize(vads.size(), nullptr);
-        lastRecEndFrame.resize(vads.size(), 0);
-        currentRecStartFrame.resize(vads.size(), 0);
-        ofLogNotice("ofxWebRTC_VAD::updateRecording") << "Recordings size was updated: " << currentRecordings.size();
-    }
-    
-    if(state == OFX_VAD_ACTIVE){
-        if(currentRecordings[channelIndex]){
-            // copy the last buffer added to circular buffer
-            copyFromCircularBuffer(circularBuffer, currentRecordings[channelIndex], inBufferSize,  channelIndex, circularBuffer.getPushIndex(), true);
-        }
-    }
-    else if(state == OFX_VAD_CHANGE_TO_ACTIVE){
-        int totalCopy = 0;
-        bool bAppend = false;
-        if(currentRecordings[channelIndex]){
-            bAppend = true;
-            auto n = audioOutCount - lastRecEndFrame[channelIndex];
-            if( n < preRec.get()){
-                totalCopy = n + 1;
-            }else {
-                ofLogError("ofxWebRTC_VAD::updateRecording") << "this should not be happening";
-                return;
-            }
-        }else{
-        
-            totalCopy = (attack.get() + preRec.get() + 1);
-            currentRecordings[channelIndex] = make_shared<ofSoundBuffer>();
-            currentRecordings[channelIndex]->allocate(inBufferSize* totalCopy, 1);
-            currentRecordings[channelIndex]->setSampleRate(inSampleRate);
-            RecordingEventArgs args(currentRecordings[channelIndex], audioOutCount, 0, channelIndex);
-            currentRecStartFrame[channelIndex] = audioOutCount - totalCopy - 1;
-            newRecordingEvent.notify(this, args);
-        }
-        int pushIndex = circularBuffer.getPushIndex();
-        int startCopy = pushIndex - ((totalCopy -1)* inBufferSize*circularBuffer.getNumChannels());
-        
-        if(startCopy < 0){
-            startCopy = circularBuffer.getBuffer().size() + startCopy;
-        }
-        
-        copyFromCircularBuffer(circularBuffer, currentRecordings[channelIndex], inBufferSize* totalCopy,  channelIndex, startCopy, bAppend);
-        
-    }
-    else if(state == OFX_VAD_CHANGE_TO_INACTIVE){
-        
-        if(currentRecordings[channelIndex]){
-            // copy the last buffer added to circular buffer
-            copyFromCircularBuffer(circularBuffer, currentRecordings[channelIndex], inBufferSize,  channelIndex, circularBuffer.getPushIndex(), true);
-            lastRecEndFrame[channelIndex] = audioOutCount;
-            
-//            std::scoped_lock lock(recordingsMutex);
-//            recordings.push_back(currentRecordings[channelIndex]);
 //
-//            currentRecordings[channelIndex] = nullptr;
-
-            if(preRec.get() == 0){
-                pushCurrentRecording(channelIndex);
-            }
-        }
-    }
-    if(state == OFX_VAD_INACTIVE){
-        if(currentRecordings[channelIndex]){
-            if(audioOutCount - lastRecEndFrame[channelIndex] >= preRec.get()){
-                pushCurrentRecording(channelIndex);
-            }
-        }
-    }
-
-    
-}
-
-
-void ofxWebRTC_VAD::pushCurrentRecording(size_t channelIndex){
-    std::scoped_lock lock(recordingsMutex);
-    recordings.push_back(currentRecordings[channelIndex]);
-    
-    currentRecordings[channelIndex] = nullptr;
-    RecordingEventArgs args(recordings.back(), currentRecStartFrame[channelIndex], lastRecEndFrame[channelIndex], channelIndex);
-    newRecordingEvent.notify(this, args);
-    
-}
-
-ofxWebRTC_VAD::Score ofxWebRTC_VAD::getActivityScore(){
+Score ofxWebRTC_VAD::getActivityScore(){
     std::scoped_lock<ofMutex> lck(scoreMutex);
     auto s = score;
     score.reset();
