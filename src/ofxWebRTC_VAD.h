@@ -18,13 +18,15 @@ public:
         ChannelState state;
         bool bActive = false;
         bool bActiveFiltered = false;
+        float rms = 0;
+        size_t rmsCount = 0;
     public:
         
         const ChannelState& getState(){return state;}
         
         size_t numFramesSinceChange;
 
-        ChannelState updateState( int activity, int attack, int release){
+        ChannelState updateState( int activity, float rms, int attack, int release){
             bool active = (activity > 0);
             
             if(active == bActive){
@@ -41,8 +43,24 @@ public:
                 bActiveFiltered = active;
             }
             state = ret;
+            this->rms = rms;
+            rmsCount++;
             return ret;
         }
+        
+        float getRms(){
+            if(rmsCount == 0){
+                return 0.0;
+            }
+            
+            float temp = rms;
+            temp /= rmsCount;
+            rms = 0;
+            rmsCount = 0;
+            return temp;
+        }
+        
+        
         friend std::ostream& operator << (std::ostream& os, const ChannelScore& s) {
             os << "Active: " << s.bActive ;
             os << "  ActiveFiltered: " << s.bActiveFiltered ;
@@ -103,6 +121,8 @@ public:
     size_t getAudioOutCount(){return audioOutCount;}
 
     shared_ptr<ofxVadRecorder> recorder = nullptr;
+    
+    std::atomic<bool> bBypass;
     
 protected:
     

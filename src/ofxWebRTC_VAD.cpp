@@ -23,6 +23,7 @@ ofxWebRTC_VAD::ofxWebRTC_VAD():ofxSoundObject(OFX_SOUND_OBJECT_PROCESSOR){
     bResetVads = false;
     sampleRate = 16000;
     aggressiveness = Vad::kVadNormal;
+    bBypass = false;
  
     listeners.push(vadAggressiveness.newListener([&](int& a){
         setAggressiveness((Vad::Aggressiveness)a);
@@ -72,6 +73,9 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
     }
     
     out = in;
+    if(bBypass){
+        return;
+    }
     if(bResetVads.load()){
         bResetVads = false;
         vads.clear();
@@ -121,7 +125,7 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
 //                    score.channelsScore[i].error ++;
                 }
             }
-            auto state = score.channelsScore[i].updateState(activity, attack.get(), release.get());
+            auto state = score.channelsScore[i].updateState(activity, inChannel.getRMSAmplitude(), attack.get(), release.get());
             recorder->updateRecording(i, state);
 
         }
