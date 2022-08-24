@@ -113,7 +113,8 @@ void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
 
 
 void ofxVadRecorder::pushCurrentRecording(size_t channelIndex){
-    std::scoped_lock lock(recordingsMutex);
+//    std::scoped_lock lock(recordingsMutex);
+    std::lock_guard<std::mutex> lck(recordingsMutex);
     recordings.push_back(currentRecordings[channelIndex]);
 
     currentRecordings[channelIndex] = nullptr;

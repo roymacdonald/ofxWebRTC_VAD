@@ -135,7 +135,8 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
 
 //
 Score ofxWebRTC_VAD::getActivityScore(){
-    std::scoped_lock<ofMutex> lck(scoreMutex);
+//    std::scoped_lock<ofMutex> lck(scoreMutex);
+    std::lock_guard<std::mutex> lck(scoreMutex);
     auto s = score;
     score.reset();
     return s;
