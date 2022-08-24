@@ -19,7 +19,7 @@ public:
         bool bActive = false;
         bool bActiveFiltered = false;
         float rms = 0;
-        size_t rmsCount = 0;
+        float maxRms = 0;
     public:
         
         const ChannelState& getState(){return state;}
@@ -44,20 +44,25 @@ public:
             }
             state = ret;
             this->rms = rms;
-            rmsCount++;
+            if(rms > maxRms){
+                maxRms = rms;
+            }
             return ret;
         }
         
         float getRms(){
-            if(rmsCount == 0){
-                return 0.0;
-            }
-            
-            float temp = rms;
-            temp /= rmsCount;
-            rms = 0;
-            rmsCount = 0;
-            return temp;
+            auto r = maxRms;
+            maxRms = 0;
+            return r;
+//            if(rmsCount == 0){
+//                return 0.0;
+//            }
+//
+//            float temp = rms;
+//            temp /= rmsCount;
+//            rms = 0;
+//            rmsCount = 0;
+//            return temp;
         }
         
         
