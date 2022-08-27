@@ -50,7 +50,7 @@ public:
             }
             
             if(ret == OFX_VAD_CHANGE_TO_ACTIVE){
-                if(rms * rmsMultiplier > minRms){
+                if(rms * rmsMultiplier < minRms){
                     ret = OFX_VAD_INACTIVE;
                     bActive = false;
                     bActiveFiltered = false;
