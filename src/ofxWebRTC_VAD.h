@@ -26,8 +26,9 @@ public:
         
         size_t numFramesSinceChange;
 
-        ChannelState updateState( int activity, float rms, int attack, int release){
+        ChannelState updateState( int activity, float rms, int attack, int release, float rmsMultiplier, float minRms, float maxRms){
             bool active = (activity > 0);
+            
             
             if(active == bActive){
                 numFramesSinceChange ++;
@@ -35,6 +36,7 @@ public:
                 numFramesSinceChange=1;
                 bActive = active;
             }
+            
             ChannelState ret = (bActiveFiltered?OFX_VAD_ACTIVE:OFX_VAD_INACTIVE);
             if(numFramesSinceChange > (active?attack:release)){
                 if(bActiveFiltered != active){
@@ -42,8 +44,23 @@ public:
                 }
                 bActiveFiltered = active;
             }
+            
+            if(ret == OFX_VAD_ACTIVE || ret == OFX_VAD_CHANGE_TO_ACTIVE){
+                this->rms = ofMap( rms * rmsMultiplier, minRms, maxRms,0,1, true);
+            }else{
+                this->rms= 0;
+            }
+            
+            if(ret == OFX_VAD_CHANGE_TO_ACTIVE){
+                if(rms * rmsMultiplier > minRms){
+                    ret = OFX_VAD_INACTIVE;
+                    bActive = false;
+                    bActiveFiltered = false;
+                }
+            }
+            
             state = ret;
-            this->rms = rms;
+//            this->rms = rms;
             rmsCount++;
             return ret;
         }
@@ -111,7 +128,16 @@ public:
     ofParameter<int> attack = {"Attack", 20, 0, 100};
     ofParameter<int> release = {"Release", 20, 0, 100};
     
-    ofParameterGroup parameters = {"ofxWebRTC_VAD", vadAggressiveness, attack, release};
+    ofParameter<float> minRms = {"Min RMS", 0., 0, 1};
+    ofParameter<float> maxRms = {"Max RMS", 1., 0, 1};
+    
+    ofParameter<float> rmsMultiplier = {"RMS Multiplier", 1000, 0, 10000};
+    ofParameterGroup activityRms = {"Activity Rms", minRms, maxRms, rmsMultiplier};
+    
+    
+    ofParameterGroup parameters = {"ofxWebRTC_VAD", vadAggressiveness, attack, release, activityRms};
+    
+    
     
 
     Score score;
@@ -123,6 +149,13 @@ public:
     shared_ptr<ofxVadRecorder> recorder = nullptr;
     
     std::atomic<bool> bBypass;
+    
+    
+    void disableRecordings();
+    void enableRecordings();
+    
+    
+    
     
 protected:
     

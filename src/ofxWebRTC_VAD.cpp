@@ -125,7 +125,7 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
 //                    score.channelsScore[i].error ++;
                 }
             }
-            auto state = score.channelsScore[i].updateState(activity, inChannel.getRMSAmplitude(), attack.get(), release.get());
+            auto state = score.channelsScore[i].updateState(activity, inChannel.getRMSAmplitude(), attack.get(), release.get(), rmsMultiplier,  minRms, maxRms);
             recorder->updateRecording(i, state);
 
         }
@@ -135,7 +135,8 @@ void ofxWebRTC_VAD::process(ofSoundBuffer &in, ofSoundBuffer &out) {
 
 //
 Score ofxWebRTC_VAD::getActivityScore(){
-    std::scoped_lock<ofMutex> lck(scoreMutex);
+//    std::scoped_lock<ofMutex> lck(scoreMutex);
+    std::lock_guard<std::mutex> lck(scoreMutex);
     auto s = score;
     score.reset();
     return s;
@@ -151,3 +152,13 @@ Vad::Aggressiveness ofxWebRTC_VAD::getAggressiveness(){
     return (Vad::Aggressiveness) aggressiveness.load();
 }
 
+void ofxWebRTC_VAD::disableRecordings(){
+    if(recorder){
+        recorder->disable();
+    }
+}
+void ofxWebRTC_VAD::enableRecordings(){
+    if(recorder){
+        recorder->enable();
+    }
+}
