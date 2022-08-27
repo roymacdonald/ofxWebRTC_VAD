@@ -29,14 +29,12 @@ public:
         ChannelState updateState( int activity, float rms, int attack, int release, float rmsMultiplier, float minRms, float maxRms){
             bool active = (activity > 0);
             
-            
             if(active == bActive){
                 numFramesSinceChange ++;
             }else{
                 numFramesSinceChange=1;
                 bActive = active;
             }
-            
             ChannelState ret = (bActiveFiltered?OFX_VAD_ACTIVE:OFX_VAD_INACTIVE);
             if(numFramesSinceChange > (active?attack:release)){
                 if(bActiveFiltered != active){
@@ -66,15 +64,18 @@ public:
         }
         
         float getRms(){
-            if(rmsCount == 0){
-                return 0.0;
-            }
-            
-            float temp = rms;
-            temp /= rmsCount;
-            rms = 0;
-            rmsCount = 0;
-            return temp;
+            // auto r = maxRms;
+            // maxRms = 0;
+            return rms;
+//            if(rmsCount == 0){
+//                return 0.0;
+//            }
+//
+//            float temp = rms;
+//            temp /= rmsCount;
+//            rms = 0;
+//            rmsCount = 0;
+//            return temp;
         }
         
         
