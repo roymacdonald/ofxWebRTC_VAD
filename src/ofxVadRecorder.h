@@ -43,11 +43,13 @@ public:
     
     vector<shared_ptr<ofSoundBuffer>> recordings;
     
-    
+    void enable();
+    void disable();
 
 //    ofEvent<RecordingEventArgs> newRecordingEvent;
 protected:
     
+    std::atomic<bool> bEnabled;
     vector<size_t> lastRecEndBuffer;
     vector<size_t> currentRecStartFrame;
     void pushCurrentRecording(size_t channelIndex);
@@ -59,7 +61,7 @@ private:
     
     ofEventListeners listeners;
         
-    std::mutex recordingsMutex;
+    std::mutex recordingsMutex, disableMutex;
     
     
     ofxWebRTC_VAD* vad = nullptr;

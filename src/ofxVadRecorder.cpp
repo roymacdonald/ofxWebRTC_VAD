@@ -10,10 +10,26 @@
 
 
 ofxVadRecorder::ofxVadRecorder(ofxWebRTC_VAD* _vad):vad(_vad){
+    bEnabled = true;
 }
 
+void ofxVadRecorder::enable(){
+    bEnabled = true;
+}
+void ofxVadRecorder::disable(){
+    bEnabled = false;
+    
+    std::lock_guard<std::mutex> lck(disableMutex);
+    for(auto& r: currentRecordings){
+        if(r){
+            recordings.push_back(r);
+            r = nullptr;
+        }
+    }
+}
 
 void ofxVadRecorder::process(ofSoundBuffer &in) {
+    if(!bEnabled) return;
     
     circularBuffer.push(in);
     lastInBuffer = in;
@@ -23,6 +39,7 @@ void ofxVadRecorder::process(ofSoundBuffer &in) {
 
 //
 void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
+    if(!bEnabled) return;
     
     if(!vad){
         ofLogError("ofxVadRecorder::updateRecording") << "vad pointer is null. returning immediately";
@@ -113,7 +130,8 @@ void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
 
 
 void ofxVadRecorder::pushCurrentRecording(size_t channelIndex){
-    std::scoped_lock lock(recordingsMutex);
+//    std::scoped_lock lock(recordingsMutex);
+    std::lock_guard<std::mutex> lck(recordingsMutex);
     recordings.push_back(currentRecordings[channelIndex]);
 
     currentRecordings[channelIndex] = nullptr;
