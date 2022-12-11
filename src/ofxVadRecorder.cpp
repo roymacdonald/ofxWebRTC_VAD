@@ -36,8 +36,19 @@ void ofxVadRecorder::process(ofSoundBuffer &in) {
     
 }
 
+bool ofxVadRecorder::appendLastInToCurrentRecording(size_t channelIndex){
+    if(channelIndex < currentRecordings.size() && currentRecordings[channelIndex] && channelIndex < lastInBuffer.getNumChannels() ){
+        
+        ofSoundBuffer chan;
+        lastInBuffer.getChannel(chan, channelIndex);
+        if(chan.getNumChannels() == currentRecordings[channelIndex]->getNumChannels()){
+            currentRecordings[channelIndex]->append(chan);
+            return true;
+        }
+    }
+    return false;
+}
 
-//
 void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
     if(!bEnabled) return;
     
@@ -54,16 +65,17 @@ void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
         
 
     if(state == OFX_VAD_ACTIVE){
-        if(currentRecordings[channelIndex]){
-            // copy the last buffer added to circular buffer
-//            circularBuffer.copyIntoBuffer(currentRecordings[channelIndex], inBufferSize,  channelIndex, circularBuffer.getPushIndex(), true);
-            
-            ofSoundBuffer chan;
-            lastInBuffer.getChannel(chan, channelIndex);
-            currentRecordings[channelIndex]->append(chan);
-            
-            
-        }
+//        if(currentRecordings[channelIndex]){
+//            // copy the last buffer added to circular buffer
+////            circularBuffer.copyIntoBuffer(currentRecordings[channelIndex], inBufferSize,  channelIndex, circularBuffer.getPushIndex(), true);
+//
+//            ofSoundBuffer chan;
+//            lastInBuffer.getChannel(chan, channelIndex);
+//            currentRecordings[channelIndex]->append(chan);
+//
+//
+//        }
+        appendLastInToCurrentRecording(channelIndex);
     }
     else if(state == OFX_VAD_CHANGE_TO_ACTIVE){
         int totalCopy =  (vad ->attack.get() + preRec.get() + 1); // in number of buffers
@@ -101,15 +113,16 @@ void ofxVadRecorder::updateRecording(size_t channelIndex, ChannelState state){
     }
     else if(state == OFX_VAD_CHANGE_TO_INACTIVE){
 
-        if(currentRecordings[channelIndex]){
+//        if(currentRecordings[channelIndex]){
+        if(appendLastInToCurrentRecording(channelIndex)){
             // copy the last buffer added to circular buffer
 //            circularBuffer.copyIntoBuffer(currentRecordings[channelIndex], inBufferSize,  channelIndex, circularBuffer.getPushIndex(), true);
             
-            ofSoundBuffer chan;
-            lastInBuffer.getChannel(chan, channelIndex);
-            currentRecordings[channelIndex]->append(chan);
-            
-            
+//            ofSoundBuffer chan;
+//            lastInBuffer.getChannel(chan, channelIndex);
+//            currentRecordings[channelIndex]->append(chan);
+//
+//
             lastRecEndBuffer[channelIndex] = audioOutCount;
 
             if(preRec.get() == 0){

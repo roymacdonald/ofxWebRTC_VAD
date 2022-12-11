@@ -48,6 +48,7 @@ public:
 
 //    ofEvent<RecordingEventArgs> newRecordingEvent;
 protected:
+    bool appendLastInToCurrentRecording(size_t channelIndex);
     
     std::atomic<bool> bEnabled;
     vector<size_t> lastRecEndBuffer;
